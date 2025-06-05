@@ -270,13 +270,43 @@
                         <span class="slider-label">Start:</span>
                         <input type="range" id="startTimeSlider" class="time-slider" min="0" max="23" value="0" step="1">
                         <span id="startTimeDisplay" class="time-display">12:00 AM</span>
+                        <input type="text" id="startTimeInput" placeholder="e.g., 2:00 PM" style="width: 80px; font-size: 12px; padding: 4px;">
                     </div>
                     <div class="slider-group">
                         <span class="slider-label">End:</span>
                         <input type="range" id="endTimeSlider" class="time-slider" min="0" max="23" value="23" step="1">
                         <span id="endTimeDisplay" class="time-display">11:00 PM</span>
+                        <input type="text" id="endTimeInput" placeholder="e.g., 5:00 PM" style="width: 80px; font-size: 12px; padding: 4px;">
                     </div>
                     <button onclick="resetTimeSliders()" style="padding: 4px 8px; font-size: 12px;">Reset</button>
+                </div>
+                
+                <div class="filter-row">
+                    <label>Exact Start Time:</label>
+                    <input type="text" id="exactTimeInput" placeholder="Enter exact start time: 2:00 PM, 10:30 AM, etc." style="width: 250px;">
+                    <span style="font-size: 12px; color: #6c757d; margin-left: 10px;">Shows only sessions starting at this exact time</span>
+                </div>
+                
+                <div class="filter-row">
+                    <label>Session Duration:</label>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <span style="font-size: 12px; color: #6c757d;">Min:</span>
+                            <input type="number" id="minDurationInput" placeholder="20" min="0" max="480" style="width: 60px; font-size: 12px; padding: 4px;">
+                            <span style="font-size: 12px; color: #6c757d;">min</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <span style="font-size: 12px; color: #6c757d;">Max:</span>
+                            <input type="number" id="maxDurationInput" placeholder="180" min="0" max="480" style="width: 60px; font-size: 12px; padding: 4px;">
+                            <span style="font-size: 12px; color: #6c757d;">min</span>
+                        </div>
+                        <div class="day-buttons">
+                            <button onclick="setDurationPreset(20, 30)" style="padding: 4px 8px; font-size: 11px;">Quick (20-30m)</button>
+                            <button onclick="setDurationPreset(45, 60)" style="padding: 4px 8px; font-size: 11px;">Standard (45-60m)</button>
+                            <button onclick="setDurationPreset(90, 180)" style="padding: 4px 8px; font-size: 11px;">Workshop (90-180m)</button>
+                            <button onclick="clearDurationFilter()" style="padding: 4px 8px; font-size: 11px;">Clear</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -314,6 +344,9 @@
         let currentTimeFilter = '';
         let currentStartTime = 0;  // 0 = 12:00 AM
         let currentEndTime = 23;   // 23 = 11:00 PM
+        let exactStartTime = '';   // For exact time matching
+        let minDuration = null;    // Minimum session duration in minutes
+        let maxDuration = null;    // Maximum session duration in minutes
         let selectedSessionId = null;
 
         // Parse time from session date string (e.g., "Monday, Jun 2 1:00 PM - 1:45 PM PDT")
@@ -352,6 +385,110 @@
             return `${hour - 12}:00 PM`;
         }
 
+        // Parse user time input (e.g., "2:00 PM", "10:30 AM", "2 PM", "14:00")
+        function parseUserTimeInput(timeStr) {
+            if (!timeStr || !timeStr.trim()) return null;
+            
+            const input = timeStr.trim().toUpperCase();
+            
+            // Handle various formats: "2:00 PM", "2 PM", "14:00", "2:30 PM"
+            const patterns = [
+                /^(\d{1,2}):(\d{2})\s*(AM|PM)$/,  // 2:00 PM
+                /^(\d{1,2})\s*(AM|PM)$/,          // 2 PM
+                /^(\d{1,2}):(\d{2})$/,            // 14:00 (24-hour)
+                /^(\d{1,2})$/                     // 14 (24-hour)
+            ];
+            
+            for (let pattern of patterns) {
+                const match = input.match(pattern);
+                if (match) {
+                    let hour = parseInt(match[1]);
+                    let minute = match[2] ? parseInt(match[2]) : 0;
+                    const period = match[3];
+                    
+                    // Convert 12-hour to 24-hour format
+                    if (period) {
+                        if (period === 'PM' && hour !== 12) {
+                            hour += 12;
+                        } else if (period === 'AM' && hour === 12) {
+                            hour = 0;
+                        }
+                    }
+                    
+                    // Validate ranges
+                    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+                        return { hour, minute };
+                    }
+                }
+            }
+            
+            return null; // Invalid format
+        }
+
+        // Format time for exact matching (handles minutes)
+        function formatExactTime(hour, minute = 0) {
+            if (hour === 0) return `12:${minute.toString().padStart(2, '0')} AM`;
+            if (hour < 12) return `${hour}:${minute.toString().padStart(2, '0')} AM`;
+            if (hour === 12) return `12:${minute.toString().padStart(2, '0')} PM`;
+            return `${hour - 12}:${minute.toString().padStart(2, '0')} PM`;
+        }
+
+        // Parse session duration from date string (e.g., "Monday, Jun 2 1:00 PM - 1:45 PM PDT")
+        function parseSessionDuration(dateString) {
+            const timePattern = /(\d{1,2}):(\d{2})\s*(AM|PM)/g;
+            const matches = [...dateString.matchAll(timePattern)];
+            
+            if (matches.length >= 2) {
+                const startMatch = matches[0];
+                const endMatch = matches[1];
+                
+                // Parse start time
+                let startHour = parseInt(startMatch[1]);
+                let startMinute = parseInt(startMatch[2]);
+                const startPeriod = startMatch[3];
+                
+                // Parse end time
+                let endHour = parseInt(endMatch[1]);
+                let endMinute = parseInt(endMatch[2]);
+                const endPeriod = endMatch[3];
+                
+                // Convert to 24-hour format
+                if (startPeriod === 'PM' && startHour !== 12) {
+                    startHour += 12;
+                } else if (startPeriod === 'AM' && startHour === 12) {
+                    startHour = 0;
+                }
+                
+                if (endPeriod === 'PM' && endHour !== 12) {
+                    endHour += 12;
+                } else if (endPeriod === 'AM' && endHour === 12) {
+                    endHour = 0;
+                }
+                
+                // Calculate duration in minutes
+                const startTotalMinutes = startHour * 60 + startMinute;
+                let endTotalMinutes = endHour * 60 + endMinute;
+                
+                // Handle sessions that cross midnight (rare but possible)
+                if (endTotalMinutes < startTotalMinutes) {
+                    endTotalMinutes += 24 * 60; // Add 24 hours
+                }
+                
+                const durationMinutes = endTotalMinutes - startTotalMinutes;
+                
+                return {
+                    hasDuration: true,
+                    durationMinutes: durationMinutes,
+                    startHour: startHour,
+                    startMinute: startMinute,
+                    endHour: endHour,
+                    endMinute: endMinute
+                };
+            }
+            
+            return { hasDuration: false };
+        }
+
         // Load sessions data
         function loadSessions() {
             try {
@@ -388,12 +525,74 @@
                 const matchesTimeRange = !sessionTime.hasTime || 
                     (sessionTime.startHour >= currentStartTime && sessionTime.startHour <= currentEndTime);
                 
-                return matchesSearch && matchesExclude && matchesDay && matchesTime && matchesTimeRange;
+                // Exact time filtering - takes priority over range filtering
+                const matchesExactTime = !exactStartTime || checkExactStartTime(session.date);
+                
+                // Duration filtering
+                const matchesDuration = checkDurationFilter(session.date);
+                
+                return matchesSearch && matchesExclude && matchesDay && matchesTime && 
+                       (exactStartTime ? matchesExactTime : matchesTimeRange) && matchesDuration;
             });
             
             renderSessions();
             updateSessionCount();
             clearSessionDetails();
+        }
+
+        // Check if session duration matches filter criteria
+        function checkDurationFilter(dateString) {
+            // If no duration filters are set, pass all sessions
+            if (minDuration === null && maxDuration === null) {
+                return true;
+            }
+            
+            const sessionDuration = parseSessionDuration(dateString);
+            if (!sessionDuration.hasDuration) {
+                // Sessions without duration info pass if no minimum is set
+                return minDuration === null;
+            }
+            
+            const duration = sessionDuration.durationMinutes;
+            
+            // Check minimum duration
+            if (minDuration !== null && duration < minDuration) {
+                return false;
+            }
+            
+            // Check maximum duration
+            if (maxDuration !== null && duration > maxDuration) {
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Check if session starts at exact specified time
+        function checkExactStartTime(dateString) {
+            const parsedExactTime = parseUserTimeInput(exactStartTime);
+            if (!parsedExactTime) return false;
+            
+            const sessionTime = parseSessionTimes(dateString);
+            if (!sessionTime.hasTime) return false;
+            
+            // For exact matching, we need to extract minutes too from the session
+            const timePattern = /(\d{1,2}):(\d{2})\s*(AM|PM)/;
+            const match = dateString.match(timePattern);
+            if (!match) return false;
+            
+            let sessionHour = parseInt(match[1]);
+            let sessionMinute = parseInt(match[2]);
+            const sessionPeriod = match[3];
+            
+            // Convert to 24-hour format
+            if (sessionPeriod === 'PM' && sessionHour !== 12) {
+                sessionHour += 12;
+            } else if (sessionPeriod === 'AM' && sessionHour === 12) {
+                sessionHour = 0;
+            }
+            
+            return sessionHour === parsedExactTime.hour && sessionMinute === parsedExactTime.minute;
         }
 
         // Check if session contains any excluded terms
@@ -515,21 +714,26 @@
             const endSlider = document.getElementById('endTimeSlider');
             const startDisplay = document.getElementById('startTimeDisplay');
             const endDisplay = document.getElementById('endTimeDisplay');
+            const startInput = document.getElementById('startTimeInput');
+            const endInput = document.getElementById('endTimeInput');
+            const exactInput = document.getElementById('exactTimeInput');
             
             // Update displays
             startDisplay.textContent = formatTimeDisplay(currentStartTime);
             endDisplay.textContent = formatTimeDisplay(currentEndTime);
             
-            // Add event listeners
+            // Add slider event listeners
             startSlider.addEventListener('input', function() {
                 currentStartTime = parseInt(this.value);
                 startDisplay.textContent = formatTimeDisplay(currentStartTime);
+                startInput.value = formatTimeDisplay(currentStartTime);
                 
                 // Ensure start time doesn't exceed end time
                 if (currentStartTime > currentEndTime) {
                     currentEndTime = currentStartTime;
                     endSlider.value = currentEndTime;
                     endDisplay.textContent = formatTimeDisplay(currentEndTime);
+                    endInput.value = formatTimeDisplay(currentEndTime);
                 }
                 
                 applyFilters();
@@ -538,14 +742,61 @@
             endSlider.addEventListener('input', function() {
                 currentEndTime = parseInt(this.value);
                 endDisplay.textContent = formatTimeDisplay(currentEndTime);
+                endInput.value = formatTimeDisplay(currentEndTime);
                 
                 // Ensure end time doesn't go below start time
                 if (currentEndTime < currentStartTime) {
                     currentStartTime = currentEndTime;
                     startSlider.value = currentStartTime;
                     startDisplay.textContent = formatTimeDisplay(currentStartTime);
+                    startInput.value = formatTimeDisplay(currentStartTime);
                 }
                 
+                applyFilters();
+            });
+            
+            // Add text input event listeners
+            startInput.addEventListener('input', function() {
+                const parsed = parseUserTimeInput(this.value);
+                if (parsed) {
+                    currentStartTime = parsed.hour;
+                    startSlider.value = currentStartTime;
+                    startDisplay.textContent = formatTimeDisplay(currentStartTime);
+                    
+                    // Ensure start time doesn't exceed end time
+                    if (currentStartTime > currentEndTime) {
+                        currentEndTime = currentStartTime;
+                        endSlider.value = currentEndTime;
+                        endDisplay.textContent = formatTimeDisplay(currentEndTime);
+                        endInput.value = formatTimeDisplay(currentEndTime);
+                    }
+                    
+                    applyFilters();
+                }
+            });
+            
+            endInput.addEventListener('input', function() {
+                const parsed = parseUserTimeInput(this.value);
+                if (parsed) {
+                    currentEndTime = parsed.hour;
+                    endSlider.value = currentEndTime;
+                    endDisplay.textContent = formatTimeDisplay(currentEndTime);
+                    
+                    // Ensure end time doesn't go below start time
+                    if (currentEndTime < currentStartTime) {
+                        currentStartTime = currentEndTime;
+                        startSlider.value = currentStartTime;
+                        startDisplay.textContent = formatTimeDisplay(currentStartTime);
+                        startInput.value = formatTimeDisplay(currentStartTime);
+                    }
+                    
+                    applyFilters();
+                }
+            });
+            
+            // Add exact time input listener
+            exactInput.addEventListener('input', function() {
+                exactStartTime = this.value.trim();
                 applyFilters();
             });
         }
@@ -554,10 +805,16 @@
         function resetTimeSliders() {
             currentStartTime = 0;
             currentEndTime = 23;
+            exactStartTime = '';
+            
             document.getElementById('startTimeSlider').value = 0;
             document.getElementById('endTimeSlider').value = 23;
             document.getElementById('startTimeDisplay').textContent = formatTimeDisplay(0);
             document.getElementById('endTimeDisplay').textContent = formatTimeDisplay(23);
+            document.getElementById('startTimeInput').value = '';
+            document.getElementById('endTimeInput').value = '';
+            document.getElementById('exactTimeInput').value = '';
+            
             applyFilters();
         }
 
@@ -567,8 +824,15 @@
             currentExcludeText = '';
             currentDayFilter = '';
             currentTimeFilter = '';
+            exactStartTime = '';
+            minDuration = null;
+            maxDuration = null;
+            
             document.getElementById('searchInput').value = '';
             document.getElementById('excludeInput').value = '';
+            document.getElementById('exactTimeInput').value = '';
+            document.getElementById('minDurationInput').value = '';
+            document.getElementById('maxDurationInput').value = '';
             
             // Reset day buttons
             document.querySelectorAll('.day-btn').forEach(btn => {
@@ -612,6 +876,36 @@
             currentExcludeText = e.target.value.trim();
             applyFilters();
         });
+
+        // Set up duration input listeners
+        document.getElementById('minDurationInput').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            minDuration = isNaN(value) || value === 0 ? null : value;
+            applyFilters();
+        });
+
+        document.getElementById('maxDurationInput').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            maxDuration = isNaN(value) || value === 0 ? null : value;
+            applyFilters();
+        });
+
+        // Duration preset functions
+        function setDurationPreset(min, max) {
+            minDuration = min;
+            maxDuration = max;
+            document.getElementById('minDurationInput').value = min;
+            document.getElementById('maxDurationInput').value = max;
+            applyFilters();
+        }
+
+        function clearDurationFilter() {
+            minDuration = null;
+            maxDuration = null;
+            document.getElementById('minDurationInput').value = '';
+            document.getElementById('maxDurationInput').value = '';
+            applyFilters();
+        }
 
         // Load sessions on page load
         document.addEventListener('DOMContentLoaded', loadSessions);
