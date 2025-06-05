@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conference Session Browser</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .filters {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            background: #f8f9fa;
+        }
+        
+        .filter-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .filter-row label {
+            font-weight: 500;
+            margin-right: 10px;
+            min-width: 100px;
+        }
+        
+        input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #e9ecef;
+        }
+        
+        button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .day-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        
+        .sessions-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .sessions-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+        
+        .sessions-table tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+        
+        .sessions-table tr.selected {
+            background: #e3f2fd;
+        }
+        
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .session-details {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            min-height: 200px;
+        }
+        
+        .session-details h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .session-details .detail-item {
+            margin-bottom: 10px;
+        }
+        
+        .session-details .detail-label {
+            font-weight: 600;
+            color: #495057;
+            margin-right: 8px;
+        }
+        
+        .session-count {
+            text-align: center;
+            padding: 10px;
+            background: #e9ecef;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .filter-row label {
+                min-width: auto;
+            }
+            
+            input[type="text"] {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .sessions-table {
+                font-size: 14px;
+            }
+            
+            .sessions-table th, .sessions-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Conference Session Browser</h1>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-row">
+                <label>Search:</label>
+                <input type="text" id="searchInput" placeholder="Search sessions by title or date...">
+                <button onclick="resetFilters()">Reset</button>
+            </div>
+            
+            <div class="filter-row">
+                <label>Filter by day:</label>
+                <div class="day-buttons">
+                    <button id="btn-all" class="day-btn active" onclick="filterByDay('')">All</button>
+                    <button id="btn-monday" class="day-btn" onclick="filterByDay('Monday')">Mon</button>
+                    <button id="btn-tuesday" class="day-btn" onclick="filterByDay('Tuesday')">Tue</button>
+                    <button id="btn-wednesday" class="day-btn" onclick="filterByDay('Wednesday')">Wed</button>
+                    <button id="btn-thursday" class="day-btn" onclick="filterByDay('Thursday')">Thu</button>
+                </div>
+            </div>
+            
+            <div class="filter-row">
+                <label>Filter by time:</label>
+                <div class="day-buttons">
+                    <button id="btn-time-all" class="time-btn active" onclick="filterByTime('')">All Times</button>
+                    <button id="btn-time-morning" class="time-btn" onclick="filterByTime('morning')">Morning (AM)</button>
+                    <button id="btn-time-afternoon" class="time-btn" onclick="filterByTime('afternoon')">Afternoon (PM)</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="session-count" id="sessionCount">
+            Loading sessions...
+        </div>
+        
+        <div class="table-container">
+            <table class="sessions-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50%">Title</th>
+                        <th style="width: 30%">Date</th>
+                        <th style="width: 20%">Code</th>
+                    </tr>
+                </thead>
+                <tbody id="sessionsTableBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="session-details" id="sessionDetails">
+            <p>Select a session to view details</p>
+        </div>
+    </div>
+
+    <script src="sessions.js"></script>
+    <script>
+        let allSessions = [];
+        let filteredSessions = [];
+        let currentSearchText = '';
+        let currentDayFilter = '';
+        let currentTimeFilter = '';
+        let selectedSessionId = null;
+
+        // Load sessions data
+        function loadSessions() {
+            try {
+                allSessions = sessionsData;
+                filteredSessions = [...allSessions];
+                renderSessions();
+                updateSessionCount();
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                document.getElementById('sessionCount').textContent = 'Error loading sessions';
+            }
+        }
+
+        // Filter sessions based on search text, day, and time
+        function applyFilters() {
+            filteredSessions = allSessions.filter(session => {
+                const matchesSearch = !currentSearchText || 
+                    session.title.toLowerCase().includes(currentSearchText.toLowerCase()) ||
+                    session.date.toLowerCase().includes(currentSearchText.toLowerCase());
+                
+                const matchesDay = !currentDayFilter || 
+                    session.date.startsWith(currentDayFilter);
+                
+                const matchesTime = !currentTimeFilter || 
+                    (currentTimeFilter === 'morning' && session.date.includes(' AM ')) ||
+                    (currentTimeFilter === 'afternoon' && session.date.includes(' PM '));
+                
+                return matchesSearch && matchesDay && matchesTime;
+            });
+            
+            renderSessions();
+            updateSessionCount();
+            clearSessionDetails();
+        }
+
+        // Render sessions in the table
+        function renderSessions() {
+            const tbody = document.getElementById('sessionsTableBody');
+            tbody.innerHTML = '';
+            
+            filteredSessions.forEach(session => {
+                const row = document.createElement('tr');
+                row.onclick = () => selectSession(session);
+                row.innerHTML = `
+                    <td>${escapeHtml(session.title || '')}</td>
+                    <td>${escapeHtml(session.date || '')}</td>
+                    <td>${escapeHtml(session.session_code || '')}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Select a session and show details
+        function selectSession(session) {
+            // Remove previous selection
+            document.querySelectorAll('.sessions-table tr').forEach(row => {
+                row.classList.remove('selected');
+            });
+            
+            // Add selection to clicked row
+            event.currentTarget.classList.add('selected');
+            
+            selectedSessionId = session.id;
+            showSessionDetails(session);
+        }
+
+        // Show session details
+        function showSessionDetails(session) {
+            const detailsDiv = document.getElementById('sessionDetails');
+            detailsDiv.innerHTML = `
+                <h3>${escapeHtml(session.title || 'No Title')}</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Date:</span>
+                    ${escapeHtml(session.date || 'N/A')}
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Time:</span>
+                    ${escapeHtml(session.time || 'N/A')}
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Session Code:</span>
+                    ${escapeHtml(session.session_code || 'N/A')}
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Description:</span>
+                    ${escapeHtml(session.description || 'No description available')}
+                </div>
+                ${session.ext_partners ? `
+                <div class="detail-item">
+                    <span class="detail-label">External Partners:</span>
+                    ${escapeHtml(session.ext_partners)}
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // Clear session details
+        function clearSessionDetails() {
+            document.getElementById('sessionDetails').innerHTML = '<p>Select a session to view details</p>';
+            selectedSessionId = null;
+        }
+
+        // Filter by day
+        function filterByDay(day) {
+            currentDayFilter = day;
+            
+            // Update button states
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (day === '') {
+                document.getElementById('btn-all').classList.add('active');
+            } else {
+                document.getElementById(`btn-${day.toLowerCase()}`).classList.add('active');
+            }
+            
+            applyFilters();
+        }
+
+        // Filter by time
+        function filterByTime(time) {
+            currentTimeFilter = time;
+            
+            // Update button states
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (time === '') {
+                document.getElementById('btn-time-all').classList.add('active');
+            } else {
+                document.getElementById(`btn-time-${time}`).classList.add('active');
+            }
+            
+            applyFilters();
+        }
+
+        // Reset all filters
+        function resetFilters() {
+            currentSearchText = '';
+            currentDayFilter = '';
+            currentTimeFilter = '';
+            document.getElementById('searchInput').value = '';
+            
+            // Reset day buttons
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('btn-all').classList.add('active');
+            
+            // Reset time buttons
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('btn-time-all').classList.add('active');
+            
+            applyFilters();
+        }
+
+        // Update session count display
+        function updateSessionCount() {
+            const count = filteredSessions.length;
+            const total = allSessions.length;
+            document.getElementById('sessionCount').textContent = 
+                `Showing ${count} of ${total} sessions`;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Set up search input listener
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            currentSearchText = e.target.value.trim();
+            applyFilters();
+        });
+
+        // Load sessions on page load
+        document.addEventListener('DOMContentLoaded', loadSessions);
+    </script>
+</body>
+</html>
