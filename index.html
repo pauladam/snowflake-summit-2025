@@ -82,6 +82,60 @@
             flex-wrap: wrap;
         }
         
+        .time-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .time-slider {
+            width: 120px;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+            appearance: none;
+        }
+        
+        .time-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .time-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #007bff;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .time-display {
+            font-size: 14px;
+            color: #495057;
+            min-width: 70px;
+            text-align: center;
+        }
+        
+        .slider-label {
+            font-size: 12px;
+            color: #6c757d;
+            min-width: 40px;
+        }
+        
         .sessions-table {
             width: 100%;
             border-collapse: collapse;
@@ -205,6 +259,20 @@
                     <button id="btn-time-morning" class="time-btn" onclick="filterByTime('morning')">Morning (AM)</button>
                     <button id="btn-time-afternoon" class="time-btn" onclick="filterByTime('afternoon')">Afternoon (PM)</button>
                 </div>
+                
+                <div class="time-slider-container">
+                    <div class="slider-group">
+                        <span class="slider-label">Start:</span>
+                        <input type="range" id="startTimeSlider" class="time-slider" min="0" max="23" value="0" step="1">
+                        <span id="startTimeDisplay" class="time-display">12:00 AM</span>
+                    </div>
+                    <div class="slider-group">
+                        <span class="slider-label">End:</span>
+                        <input type="range" id="endTimeSlider" class="time-slider" min="0" max="23" value="23" step="1">
+                        <span id="endTimeDisplay" class="time-display">11:00 PM</span>
+                    </div>
+                    <button onclick="resetTimeSliders()" style="padding: 4px 8px; font-size: 12px;">Reset</button>
+                </div>
             </div>
         </div>
         
@@ -238,13 +306,52 @@
         let currentSearchText = '';
         let currentDayFilter = '';
         let currentTimeFilter = '';
+        let currentStartTime = 0;  // 0 = 12:00 AM
+        let currentEndTime = 23;   // 23 = 11:00 PM
         let selectedSessionId = null;
+
+        // Parse time from session date string (e.g., "Monday, Jun 2 1:00 PM - 1:45 PM PDT")
+        function parseSessionTimes(dateString) {
+            const timePattern = /(\d{1,2}):(\d{2})\s*(AM|PM)/g;
+            const matches = [...dateString.matchAll(timePattern)];
+            
+            if (matches.length >= 1) {
+                const startMatch = matches[0];
+                let startHour = parseInt(startMatch[1]);
+                const startMinute = parseInt(startMatch[2]);
+                const startPeriod = startMatch[3];
+                
+                // Convert to 24-hour format
+                if (startPeriod === 'PM' && startHour !== 12) {
+                    startHour += 12;
+                } else if (startPeriod === 'AM' && startHour === 12) {
+                    startHour = 0;
+                }
+                
+                return {
+                    startHour: startHour,
+                    startMinute: startMinute,
+                    hasTime: true
+                };
+            }
+            
+            return { hasTime: false };
+        }
+
+        // Convert hour to display format
+        function formatTimeDisplay(hour) {
+            if (hour === 0) return '12:00 AM';
+            if (hour < 12) return `${hour}:00 AM`;
+            if (hour === 12) return '12:00 PM';
+            return `${hour - 12}:00 PM`;
+        }
 
         // Load sessions data
         function loadSessions() {
             try {
                 allSessions = sessionsData;
                 filteredSessions = [...allSessions];
+                initializeTimeSliders();
                 renderSessions();
                 updateSessionCount();
             } catch (error) {
@@ -267,7 +374,12 @@
                     (currentTimeFilter === 'morning' && session.date.includes(' AM ')) ||
                     (currentTimeFilter === 'afternoon' && session.date.includes(' PM '));
                 
-                return matchesSearch && matchesDay && matchesTime;
+                // Time range filtering
+                const sessionTime = parseSessionTimes(session.date);
+                const matchesTimeRange = !sessionTime.hasTime || 
+                    (sessionTime.startHour >= currentStartTime && sessionTime.startHour <= currentEndTime);
+                
+                return matchesSearch && matchesDay && matchesTime && matchesTimeRange;
             });
             
             renderSessions();
@@ -378,6 +490,58 @@
             applyFilters();
         }
 
+        // Initialize time sliders
+        function initializeTimeSliders() {
+            const startSlider = document.getElementById('startTimeSlider');
+            const endSlider = document.getElementById('endTimeSlider');
+            const startDisplay = document.getElementById('startTimeDisplay');
+            const endDisplay = document.getElementById('endTimeDisplay');
+            
+            // Update displays
+            startDisplay.textContent = formatTimeDisplay(currentStartTime);
+            endDisplay.textContent = formatTimeDisplay(currentEndTime);
+            
+            // Add event listeners
+            startSlider.addEventListener('input', function() {
+                currentStartTime = parseInt(this.value);
+                startDisplay.textContent = formatTimeDisplay(currentStartTime);
+                
+                // Ensure start time doesn't exceed end time
+                if (currentStartTime > currentEndTime) {
+                    currentEndTime = currentStartTime;
+                    endSlider.value = currentEndTime;
+                    endDisplay.textContent = formatTimeDisplay(currentEndTime);
+                }
+                
+                applyFilters();
+            });
+            
+            endSlider.addEventListener('input', function() {
+                currentEndTime = parseInt(this.value);
+                endDisplay.textContent = formatTimeDisplay(currentEndTime);
+                
+                // Ensure end time doesn't go below start time
+                if (currentEndTime < currentStartTime) {
+                    currentStartTime = currentEndTime;
+                    startSlider.value = currentStartTime;
+                    startDisplay.textContent = formatTimeDisplay(currentStartTime);
+                }
+                
+                applyFilters();
+            });
+        }
+
+        // Reset time sliders
+        function resetTimeSliders() {
+            currentStartTime = 0;
+            currentEndTime = 23;
+            document.getElementById('startTimeSlider').value = 0;
+            document.getElementById('endTimeSlider').value = 23;
+            document.getElementById('startTimeDisplay').textContent = formatTimeDisplay(0);
+            document.getElementById('endTimeDisplay').textContent = formatTimeDisplay(23);
+            applyFilters();
+        }
+
         // Reset all filters
         function resetFilters() {
             currentSearchText = '';
@@ -397,7 +561,8 @@
             });
             document.getElementById('btn-time-all').classList.add('active');
             
-            applyFilters();
+            // Reset time sliders
+            resetTimeSliders();
         }
 
         // Update session count display
