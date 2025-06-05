@@ -242,6 +242,11 @@
             </div>
             
             <div class="filter-row">
+                <label>Exclude:</label>
+                <input type="text" id="excludeInput" placeholder="Exclude terms (comma-separated): Ask Me Anything, Swiggy, Hackathon">
+            </div>
+            
+            <div class="filter-row">
                 <label>Filter by day:</label>
                 <div class="day-buttons">
                     <button id="btn-all" class="day-btn active" onclick="filterByDay('')">All</button>
@@ -304,6 +309,7 @@
         let allSessions = [];
         let filteredSessions = [];
         let currentSearchText = '';
+        let currentExcludeText = '';
         let currentDayFilter = '';
         let currentTimeFilter = '';
         let currentStartTime = 0;  // 0 = 12:00 AM
@@ -367,6 +373,9 @@
                     session.title.toLowerCase().includes(currentSearchText.toLowerCase()) ||
                     session.date.toLowerCase().includes(currentSearchText.toLowerCase());
                 
+                // Exclude filter - check if session contains any excluded terms
+                const matchesExclude = !currentExcludeText || !checkExcludeTerms(session);
+                
                 const matchesDay = !currentDayFilter || 
                     session.date.startsWith(currentDayFilter);
                 
@@ -379,12 +388,22 @@
                 const matchesTimeRange = !sessionTime.hasTime || 
                     (sessionTime.startHour >= currentStartTime && sessionTime.startHour <= currentEndTime);
                 
-                return matchesSearch && matchesDay && matchesTime && matchesTimeRange;
+                return matchesSearch && matchesExclude && matchesDay && matchesTime && matchesTimeRange;
             });
             
             renderSessions();
             updateSessionCount();
             clearSessionDetails();
+        }
+
+        // Check if session contains any excluded terms
+        function checkExcludeTerms(session) {
+            if (!currentExcludeText.trim()) return false;
+            
+            const excludeTerms = currentExcludeText.split(',').map(term => term.trim().toLowerCase());
+            const sessionText = (session.title + ' ' + session.description + ' ' + session.date).toLowerCase();
+            
+            return excludeTerms.some(term => term && sessionText.includes(term));
         }
 
         // Render sessions in the table
@@ -545,9 +564,11 @@
         // Reset all filters
         function resetFilters() {
             currentSearchText = '';
+            currentExcludeText = '';
             currentDayFilter = '';
             currentTimeFilter = '';
             document.getElementById('searchInput').value = '';
+            document.getElementById('excludeInput').value = '';
             
             // Reset day buttons
             document.querySelectorAll('.day-btn').forEach(btn => {
@@ -583,6 +604,12 @@
         // Set up search input listener
         document.getElementById('searchInput').addEventListener('input', function(e) {
             currentSearchText = e.target.value.trim();
+            applyFilters();
+        });
+
+        // Set up exclude input listener
+        document.getElementById('excludeInput').addEventListener('input', function(e) {
+            currentExcludeText = e.target.value.trim();
             applyFilters();
         });
 
