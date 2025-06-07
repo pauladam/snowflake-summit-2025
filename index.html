@@ -768,7 +768,8 @@
             
             filteredSessions.forEach(session => {
                 const row = document.createElement('tr');
-                row.onclick = () => selectSession(session);
+                row.dataset.id = session.id;
+                row.onclick = () => selectSession(session, row);
                 row.innerHTML = `
                     <td>${escapeHtml(session.title || '')}</td>
                     <td>${escapeHtml(session.date || '')}</td>
@@ -779,17 +780,21 @@
         }
 
         // Select a session and show details
-        function selectSession(session) {
+        function selectSession(session, rowElem) {
             // Remove previous selection
             document.querySelectorAll('.sessions-table tr').forEach(row => {
                 row.classList.remove('selected');
             });
-            
-            // Add selection to clicked row
-            event.currentTarget.classList.add('selected');
-            
+
+            // Add selection to clicked row or lookup row by id
+            const row = rowElem || document.querySelector(`tr[data-id='${session.id}']`);
+            if (row) {
+                row.classList.add('selected');
+            }
+
             selectedSessionId = session.id;
             showSessionDetails(session);
+            window.location.hash = `session-${session.id}`;
         }
 
         // Show session details
@@ -826,6 +831,19 @@
         function clearSessionDetails() {
             document.getElementById('sessionDetails').innerHTML = '<p>Select a session to view details</p>';
             selectedSessionId = null;
+        }
+
+        // Load session from URL hash if present
+        function loadSessionFromHash() {
+            const match = window.location.hash.match(/^#session-(\d+)$/);
+            if (match) {
+                const id = parseInt(match[1]);
+                const session = allSessions.find(s => s.id === id);
+                if (session) {
+                    const row = document.querySelector(`tr[data-id='${id}']`);
+                    selectSession(session, row);
+                }
+            }
         }
 
         // Filter by day
@@ -1116,6 +1134,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadSessions();
     applySavedTheme();
+    loadSessionFromHash();
+    window.addEventListener('hashchange', loadSessionFromHash);
 });
     </script>
 </body>
