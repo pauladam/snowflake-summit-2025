@@ -186,19 +186,28 @@
         .sessions-table tr.selected {
             background: #e3f2fd;
         }
-        
-        .table-container {
-            max-height: 400px;
-            overflow-y: auto;
-            border-bottom: 1px solid #666;
+
+        .main-content {
+            display: flex;
+            gap: 20px;
         }
         
-        .session-details {
-            padding: 20px;
-            background: #d9d9d9;
-            border-top: 1px solid #666;
-            min-height: 200px;
-        }
+.table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border-bottom: 1px solid #666; /* darker tone preferred in codex branch */
+    flex: 1;
+    border-right: 1px solid #666;
+}
+        
+      .session-details {
+    padding: 20px;
+    background: #d9d9d9;
+    border-top: 1px solid #666;
+    border-left: 1px solid #666;
+    min-height: 200px;
+    flex: 1;
+}
         
         .session-details h3 {
             margin-top: 0;
@@ -257,6 +266,28 @@
             .sessions-table th, .sessions-table td {
                 padding: 8px;
             }
+
+            .main-content {
+                flex-direction: column;
+            }
+
+            .table-container {
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+
+            .session-details {
+                border-left: none;
+                border-top: 1px solid #ddd;
+            }
+
+            body.dark-mode .table-container {
+                border-bottom-color: #555;
+            }
+
+            body.dark-mode .session-details {
+                border-top-color: #555;
+            }
         }
 
         body.dark-mode {
@@ -307,11 +338,12 @@
 
         body.dark-mode .table-container {
             border-bottom-color: #555;
+            border-right-color: #555;
         }
 
         body.dark-mode .session-details {
             background: #2a2a2a;
-            border-top-color: #555;
+            border-left-color: #555;
         }
 
         body.dark-mode .session-details h3 {
@@ -416,9 +448,10 @@
             Loading sessions...
         </div>
         <canvas id="resultSparkline" width="200" height="40" style="display:block;margin:10px auto;"></canvas>
-        
-        <div class="table-container">
-            <table class="sessions-table">
+
+        <div class="main-content">
+            <div class="table-container">
+                <table class="sessions-table">
                 <thead>
                     <tr>
                         <th style="width: 50%">Title</th>
@@ -429,10 +462,12 @@
                 <tbody id="sessionsTableBody">
                 </tbody>
             </table>
+            </div>
+
+            <div class="session-details" id="sessionDetails">
+                <p>Select a session to view details</p>
+            </div>
         </div>
-        
-        <div class="session-details" id="sessionDetails">
-            <p>Select a session to view details</p>
         </div>
     </div>
 
@@ -1063,7 +1098,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSessions();
     applySavedTheme();
 });
-        });
     </script>
 </body>
 </html>
