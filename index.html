@@ -343,6 +343,7 @@
         <div class="session-count" id="sessionCount">
             Loading sessions...
         </div>
+        <canvas id="resultSparkline" width="200" height="40" style="display:block;margin:10px auto;"></canvas>
         
         <div class="table-container">
             <table class="sessions-table">
@@ -883,8 +884,29 @@
         function updateSessionCount() {
             const count = filteredSessions.length;
             const total = allSessions.length;
-            document.getElementById('sessionCount').textContent = 
+            document.getElementById('sessionCount').textContent =
                 `Showing ${count} of ${total} sessions`;
+            updateSparkline();
+        }
+
+        function updateSparkline() {
+            const canvas = document.getElementById('resultSparkline');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+            const counts = days.map(day =>
+                filteredSessions.filter(s => s.date.startsWith(day)).length
+            );
+            const max = Math.max(...counts, 1);
+            const barWidth = canvas.width / counts.length;
+
+            counts.forEach((count, i) => {
+                const h = (count / max) * canvas.height;
+                ctx.fillStyle = '#007bff';
+                ctx.fillRect(i * barWidth + 1, canvas.height - h, barWidth - 2, h);
+            });
         }
 
         // Escape HTML to prevent XSS
