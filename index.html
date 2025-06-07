@@ -6,39 +6,39 @@
     <title>Conference Session Browser</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: #c0c0c0;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: #e0e0e0;
+            border: 2px solid #666;
+            box-shadow: inset 0 0 3px #fff;
             overflow: hidden;
         }
         
         .header {
-            background: #2c3e50;
-            color: white;
-            padding: 20px;
-            text-align: center;
+            background: #3b3b3b;
+            color: #fff;
+            padding: 10px;
+            text-align: left;
         }
         
         .filters {
-            padding: 15px;
-            border-bottom: 1px solid #ddd;
-            background: #f8f9fa;
+            padding: 10px;
+            border-bottom: 1px solid #999;
+            background: #d9d9d9;
         }
 
         #toggleFiltersBtn {
             display: none;
-            background: #2c3e50;
-            color: white;
-            border: none;
+            background: linear-gradient(#e0e0e0, #c0c0c0);
+            color: #000;
+            border: 1px solid #666;
             padding: 10px;
             font-size: 16px;
             width: 100%;
@@ -65,24 +65,24 @@
         
         input[type="text"] {
             padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid #999;
+            border-radius: 0;
             font-size: 14px;
             width: 200px;
         }
         
         button {
             padding: 8px 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
+            border: 1px solid #666;
+            border-radius: 0;
+            background: linear-gradient(#e0e0e0, #c0c0c0);
             cursor: pointer;
             font-size: 14px;
             transition: background 0.2s;
         }
         
         button:hover {
-            background: #e9ecef;
+            background: #d0d0d0;
         }
 
         button.active {
@@ -164,22 +164,22 @@
         }
         
         .sessions-table th {
-            background: #f8f9fa;
+            background: #bfbfbf;
             padding: 12px;
             text-align: left;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            color: #495057;
+            border-bottom: 1px solid #666;
+            font-weight: bold;
+            color: #000;
         }
         
         .sessions-table td {
             padding: 12px;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid #999;
             vertical-align: top;
         }
         
         .sessions-table tr:hover {
-            background: #f8f9fa;
+            background: #dcdcdc;
             cursor: pointer;
         }
         
@@ -190,19 +190,19 @@
         .table-container {
             max-height: 400px;
             overflow-y: auto;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #666;
         }
         
         .session-details {
             padding: 20px;
-            background: #f8f9fa;
-            border-top: 1px solid #ddd;
+            background: #d9d9d9;
+            border-top: 1px solid #666;
             min-height: 200px;
         }
         
         .session-details h3 {
             margin-top: 0;
-            color: #2c3e50;
+            color: #000;
         }
         
         .session-details .detail-item {
@@ -211,16 +211,16 @@
         
         .session-details .detail-label {
             font-weight: 600;
-            color: #495057;
+            color: #000;
             margin-right: 8px;
         }
         
         .session-count {
             text-align: center;
             padding: 10px;
-            background: #e9ecef;
+            background: #bfbfbf;
             font-size: 14px;
-            color: #6c757d;
+            color: #000;
         }
         
         @media (max-width: 768px) {
